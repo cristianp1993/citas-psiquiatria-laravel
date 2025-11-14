@@ -1,19 +1,16 @@
-
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import PublicNavbar from '@/Components/PublicNavbar.vue'
-const props = defineProps({ doctors: Array })
-const doctor = ref(props.doctors[0] ?? null)
+const props = defineProps({ doctor: Object })
 const events = ref([])
 async function loadAvailability(){
-  if(!doctor.value) return
-  const res = await fetch(`/api/public/availability?doctor=${doctor.value.slug}`)
+  const res = await fetch(`/api/public/availability?doctor=${props.doctor.slug}`)
   events.value = (await res.json()).map(s=>({start:s.start,end:s.end,title:'Disponible'}))
 }
 function selectSlot(e){
   const start = new Date(e.start).toISOString()
-  router.get('/appointments/new', { doctor: doctor.value.slug, start })
+  router.get('/appointments/new', { doctor: props.doctor.slug, start })
 }
 onMounted(loadAvailability)
 </script>
@@ -21,11 +18,8 @@ onMounted(loadAvailability)
 <template>
   <PublicNavbar />
   <div class="max-w-6xl mx-auto p-6">
-    <div class="mb-4">
-      <select v-model="doctor" @change="loadAvailability" class="border rounded p-2">
-        <option v-for="d in doctors" :key="d.slug" :value="d">{{ d.name }}</option>
-      </select>
-    </div>
+    <h1 class="text-2xl font-bold mb-4">{{ doctor.name }}</h1>
+    <p>Especialidad: {{ doctor.specialty.name }}</p>
     <VueCal
       :time-from="8*60"
       :time-to="18*60"

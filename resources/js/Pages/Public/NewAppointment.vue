@@ -1,11 +1,13 @@
 
 <script setup>
 import { useForm } from '@inertiajs/vue3'
+import PublicNavbar from '@/Components/PublicNavbar.vue'
 const props = defineProps({ doctor:Object, start:String })
 const form = useForm({ doctor_id: props.doctor.id, patient_name:'', patient_email:'', patient_phone:'', start_at: props.start })
 function submit(){ form.post('/appointments') }
 </script>
 <template>
+  <PublicNavbar />
   <div class="max-w-xl mx-auto p-6 space-y-3">
     <h1 class="text-xl font-semibold">Reservar con {{ doctor.name }}</h1>
     <input v-model="form.patient_name" class="border p-2 w-full" placeholder="Nombre completo" />
