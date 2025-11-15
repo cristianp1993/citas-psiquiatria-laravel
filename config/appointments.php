@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'duration' => (int) env('APPOINTMENT_DURATION_MINUTES', 20),
+    'duration' => (int) env('APPOINTMENT_DURATION_MINUTES', 60),
 ];

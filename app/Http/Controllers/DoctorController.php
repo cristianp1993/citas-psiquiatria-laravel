@@ -16,31 +16,60 @@ class DoctorController extends Controller
 
     public function create()
     {
-        // Implement create
+        $specialties = \App\Models\Specialty::all();
+        return Inertia::render('Admin/Doctors/Create', ['specialties' => $specialties]);
     }
 
     public function store(Request $request)
     {
-        // Implement store
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:doctors,email',
+            'specialty_id' => 'required|exists:specialties,id',
+            'is_active' => 'boolean'
+        ]);
+
+        $data['slug'] = \Illuminate\Support\Str::slug($data['name'] . '-' . \Illuminate\Support\Str::random(5));
+        $data['is_active'] = $data['is_active'] ?? true;
+
+        Doctor::create($data);
+
+        return redirect()->route('doctors.index')->with('success', 'Doctor creado exitosamente.');
     }
 
     public function show(Doctor $doctor)
     {
-        // Implement show
+        $doctor->load('specialty', 'schedules');
+        return Inertia::render('Admin/Doctors/Show', ['doctor' => $doctor]);
     }
 
     public function edit(Doctor $doctor)
     {
-        // Implement edit
+        $specialties = \App\Models\Specialty::all();
+        return Inertia::render('Admin/Doctors/Edit', ['doctor' => $doctor, 'specialties' => $specialties]);
     }
 
     public function update(Request $request, Doctor $doctor)
     {
-        // Implement update
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:doctors,email,' . $doctor->id,
+            'specialty_id' => 'required|exists:specialties,id',
+            'is_active' => 'boolean'
+        ]);
+
+        if ($doctor->name !== $data['name']) {
+            $data['slug'] = \Illuminate\Support\Str::slug($data['name'] . '-' . \Illuminate\Support\Str::random(5));
+        }
+
+        $doctor->update($data);
+
+        return redirect()->route('doctors.index')->with('success', 'Doctor actualizado exitosamente.');
     }
 
     public function destroy(Doctor $doctor)
     {
-        // Implement destroy
+        $doctor->delete();
+        return redirect()->route('doctors.index')->with('success', 'Doctor eliminado exitosamente.');
     }
 }

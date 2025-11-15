@@ -32,6 +32,30 @@ class CalendarController extends Controller
             ? Doctor::where('slug', $request->doctor)->first()
             : null;
 
-        return Inertia::render('Admin/Calendar', ['doctor' => $doctor]);
+        return Inertia::render('Admin/Calendar', [
+            'doctor' => $doctor,
+            'duration' => config('appointments.duration')
+        ]);
+    }
+
+    public function calendarData(Request $request)
+    {
+        $doctor = Doctor::where('slug', $request->doctor)->firstOrFail();
+
+        // Para simplificar, devolvemos todas las citas (pendientes y confirmadas)
+        $appointments = Appointment::where('doctor_id', $doctor->id)
+            ->orderBy('start_at')
+            ->get();
+
+        $events = $appointments->map(function ($a) {
+            return [
+                'start' => $a->start_at->toIso8601String(),
+                'end'   => $a->end_at->toIso8601String(),
+                'title' => $a->patient_name,
+                'class' => $a->status, // 'pending' o 'confirmed'
+            ];
+        });
+
+        return response()->json($events);
     }
 }

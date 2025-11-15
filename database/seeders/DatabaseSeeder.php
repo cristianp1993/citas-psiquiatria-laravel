@@ -4,10 +4,21 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\{Specialty,Doctor,DoctorSchedule};
+use App\Models\{Specialty,Doctor,DoctorSchedule,User};
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder {
     public function run(): void {
+        // Create test user
+        User::firstOrCreate(
+            ['email' => 'cristian.piedrahita22118@ucaldas.edu.co'],
+            [
+                'name' => 'Cristian Piedrahita',
+                'password' => Hash::make('123456'),
+                'email_verified_at' => now(),
+            ]
+        );
+
         $psi = Specialty::firstOrCreate(['slug'=>'psiquiatria'],['name'=>'Psiquiatría']);
         Doctor::factory()->count(3)->create(['specialty_id'=>$psi->id])->each(function($d){
             foreach(range(1,5) as $w){

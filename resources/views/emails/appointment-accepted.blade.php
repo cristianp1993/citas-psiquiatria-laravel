@@ -1,15 +1,25 @@
-<x-mail::message>
-# ¡Cita confirmada!
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cita confirmada</title>
+</head>
+<body>
+    <h1>¡Cita confirmada!</h1>
 
-Hola {{ $appointment->patient_name }},
+    <p>Hola {{ $appointment->patient_name }},</p>
 
-Tu cita con el Dr. {{ $appointment->doctor->name }} ha sido confirmada.
+    <p>
+        Tu cita con el Dr. {{ $appointment->doctor->name }} ha sido
+        <strong>confirmada</strong>.
+    </p>
 
-- **Fecha:** {{ $appointment->start_at->format('d/m/Y') }}
-- **Hora:** {{ $appointment->start_at->format('H:i') }}
+    <ul>
+        <li><strong>Fecha:</strong> {{ $appointment->start_at->format('d/m/Y') }}</li>
+        <li><strong>Hora:</strong> {{ $appointment->start_at->format('H:i') }}</li>
+    </ul>
 
-Gracias por confiar en nosotros.
-
-Atentamente,  
-{{ config('app.name') }}
-</x-mail::message>
+    <p>Gracias por confiar en nosotros.<br>
+    {{ config('app.name') }}</p>
+</body>
+</html>

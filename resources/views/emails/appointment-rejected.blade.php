@@ -1,14 +1,31 @@
-<x-mail::message>
-# Cita no confirmada
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cita no confirmada</title>
+</head>
+<body>
+    <h1>Cita no confirmada</h1>
 
-Hola {{ $appointment->patient_name }},
+    <p>Hola {{ $appointment->patient_name }},</p>
 
-Lamentamos informarte que **no podemos confirmar** tu cita solicitada con el **Dr. {{ $appointment->doctor->name }}**.
+    <p>
+        Lamentamos informarte que <strong>no podemos confirmar</strong> tu cita
+        solicitada con el Dr. {{ $appointment->doctor->name }}.
+    </p>
 
-- **Fecha solicitada:** {{ $appointment->start_at->format('d/m/Y') }} a las {{ $appointment->start_at->format('H:i') }}
+    <ul>
+        <li><strong>Fecha solicitada:</strong> {{ $appointment->start_at->format('d/m/Y') }}</li>
+        <li><strong>Hora solicitada:</strong> {{ $appointment->start_at->format('H:i') }}</li>
+    </ul>
 
-Puedes intentar agendar una nueva cita desde nuestro sitio web.
+    <p>
+        Puedes intentar agendar una nueva cita desde nuestro sitio web.
+    </p>
 
-Agradecemos tu interés y disculpamos las molestias.<br>
-{{ config('app.name') }}
-</x-mail::message>
+    <p>
+        Agradecemos tu interés y lamentamos las molestias.<br>
+        {{ config('app.name') }}
+    </p>
+</body>
+</html>

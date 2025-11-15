@@ -1,7 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+@import "toastify-js/src/toastify.css";
 [x-cloak] {
     display: none;
+}
+
+/* VueCal event colors */
+.vuecal__event.pending {
+    background-color: #fbbf24; /* yellow */
+    color: #000;
+}
+
+.vuecal__event.confirmed {
+    background-color: #10b981; /* green */
+    color: #fff;
+}
+
+.vuecal__event.rejected {
+    background-color: #ef4444; /* red */
+    color: #fff;
+}
+
+.vuecal__event.available {
+    background-color: #3b82f6; /* blue */
+    color: #fff;
 }
