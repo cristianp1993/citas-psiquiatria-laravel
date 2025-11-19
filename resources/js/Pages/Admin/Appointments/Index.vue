@@ -3,10 +3,6 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 
-defineOptions({
-    layout: AppLayout,
-})
-
 const props = defineProps({ appointments: Object, filters: Object })
 
 const doctorFilter = ref(props.filters.doctor || '')

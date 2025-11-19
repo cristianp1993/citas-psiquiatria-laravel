@@ -10,33 +10,73 @@ class CalendarController extends Controller
 {
     public function dashboard(Request $request)
     {
+        $doctorSlug = $request->doctor;
+
         $doctors = Doctor::orderBy('name')->get(['id', 'name', 'slug']);
+
+        // Pendientes
         $pending = Appointment::with('doctor')
+            ->when($doctorSlug, function ($q) use ($doctorSlug) {
+                $q->whereHas('doctor', fn ($d) => $d->where('slug', $doctorSlug));
+            })
             ->where('status', 'pending')
             ->orderBy('start_at')
             ->limit(10)
             ->get();
+
+        // Próximas confirmadas
         $upcoming = Appointment::with('doctor')
+            ->when($doctorSlug, function ($q) use ($doctorSlug) {
+                $q->whereHas('doctor', fn ($d) => $d->where('slug', $doctorSlug));
+            })
             ->where('status', 'confirmed')
             ->where('start_at', '>', now())
             ->orderBy('start_at')
             ->limit(10)
             ->get();
 
-        return Inertia::render('Admin/Dashboard', compact('doctors', 'pending', 'upcoming'));
+        // (Opcional) rechazadas, por si quieres la 3ª card:
+        $rejected = Appointment::with('doctor')
+            ->when($doctorSlug, function ($q) use ($doctorSlug) {
+                $q->whereHas('doctor', fn ($d) => $d->where('slug', $doctorSlug));
+            })
+            ->where('status', 'rejected')
+            ->orderBy('start_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return Inertia::render('Dashboard', [
+            'doctors' => $doctors,
+            'pending' => $pending,
+            'upcoming' => $upcoming,
+            'rejected' => $rejected,
+            'filters' => [
+                'doctor' => $doctorSlug,
+            ],
+        ]);
     }
 
     public function adminCalendar(Request $request)
-    {
-        $doctor = $request->doctor
-            ? Doctor::where('slug', $request->doctor)->first()
-            : null;
+{
+    // Todos los doctores para el selector
+    $doctors = Doctor::orderBy('name')->get(['id', 'name', 'slug']);
 
-        return Inertia::render('Admin/Calendar', [
-            'doctor' => $doctor,
-            'duration' => config('appointments.duration')
-        ]);
-    }
+    // Slug seleccionado (si viene por query) o el primero
+    $selectedSlug = $request->doctor ?? ($doctors->first()->slug ?? null);
+
+    $doctor = $selectedSlug
+        ? Doctor::where('slug', $selectedSlug)->first()
+        : null;
+
+    return Inertia::render('Admin/Calendar', [
+        'doctors'  => $doctors,
+        'doctor'   => $doctor,
+        'duration' => config('appointments.duration'),
+        'filters'  => [
+            'doctor' => $selectedSlug,
+        ],
+    ]);
+}
 
     public function calendarData(Request $request)
     {
