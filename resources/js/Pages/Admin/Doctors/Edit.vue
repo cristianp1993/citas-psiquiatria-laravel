@@ -21,11 +21,10 @@ const form = useForm({
     name: props.doctor.name,
     email: props.doctor.email,
     specialty_id: props.doctor.specialty_id,
-    is_active: props.doctor.is_active,
-    // 👇 Horarios existentes o array vacío
+    is_active: Boolean(props.doctor.is_active),
     schedules: (props.doctor.schedules || []).map(s => ({
         weekday: s.weekday,
-        start_time: s.start_time, // asumiendo 'HH:MM:SS' o 'HH:MM'
+        start_time: s.start_time,
         end_time: s.end_time,
     })),
 })
@@ -43,10 +42,18 @@ function removeScheduleRow(index) {
 }
 
 function submit() {
-    form.put(route('doctors.update', props.doctor.slug))
+    form.transform((data) => ({
+        ...data,
+        schedules: data.schedules.filter(s =>
+            s.weekday != null &&
+            s.start_time?.trim() &&
+            s.end_time?.trim()
+        ),
+    })).put(route('doctors.update', props.doctor.slug), {
+        preserveScroll: true,
+    })
 }
 </script>
-
 
 <template>
     <AppLayout>
@@ -87,8 +94,8 @@ function submit() {
                                     required>
                                     <option value="">Seleccionar especialidad</option>
                                     <option v-for="specialty in specialties" :key="specialty.id" :value="specialty.id">
-                                        {{
-                                        specialty.name }}</option>
+                                        {{ specialty.name }}
+                                    </option>
                                 </select>
                                 <div v-if="form.errors.specialty_id" class="text-red-600 text-sm mt-1">{{
                                     form.errors.specialty_id }}</div>
@@ -140,7 +147,6 @@ function submit() {
                                     + Añadir horario
                                 </button>
                             </div>
-
 
                             <div class="flex items-center justify-end">
                                 <button type="submit" :disabled="form.processing"

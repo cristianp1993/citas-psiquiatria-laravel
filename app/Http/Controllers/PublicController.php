@@ -15,7 +15,7 @@ class PublicController extends Controller {
 
     return Inertia::render('Public/Index', [
         'doctors'  => $doctors,
-        'duration' => config('appointments.duration'), // <- importante
+        'duration' => config('appointments.duration'), 
     ]);
 }
 

@@ -11,7 +11,6 @@ const props = defineProps({
   filters: Object,
 })
 
-// usamos layout global, NO volvemos a envolver en <AppLayout> dentro del template
 defineOptions({
   layout: AppLayout,
 })
@@ -22,8 +21,7 @@ const selectedDoctorSlug = ref(
 
 const events = ref([])
 
-// cargar eventos del doctor seleccionado
-async function loadEvents () {
+async function loadEvents() {
   if (!selectedDoctorSlug.value) {
     events.value = []
     return
@@ -33,7 +31,7 @@ async function loadEvents () {
     const res = await fetch(`/admin/calendar-data?doctor=${selectedDoctorSlug.value}`)
 
     if (!res.ok) {
-      console.error('Error API /api/admin/calendar', res.status)
+      console.error('Error API /admin/calendar-data', res.status)
       events.value = []
       return
     }
@@ -41,19 +39,49 @@ async function loadEvents () {
     const data = await res.json()
     const list = Array.isArray(data) ? data : []
 
-    events.value = list.map(ev => ({
+    const parsed = list.map(ev => ({
       ...ev,
       start: new Date(ev.start),
       end: new Date(ev.end),
+      class: ev.class,
     }))
+
+    const appointmentEvents = parsed.filter(e =>
+      e.class === 'pending' ||
+      e.class === 'confirmed' ||
+      e.class === 'rejected'
+    )
+
+    const availableEvents = parsed.filter(e => e.class === 'available')
+
+    const overlaps = (a, b) => a.start < b.end && b.start < a.end
+
+    const filteredAvailable = availableEvents.filter(av =>
+      !appointmentEvents.some(ap => overlaps(av, ap))
+    )
+
+    events.value = [
+      ...filteredAvailable.map(e => ({
+        ...e,
+        title: 'Disponible',
+      })),
+      ...appointmentEvents,
+    ]
   } catch (e) {
     console.error('Error cargando calendario admin', e)
     events.value = []
   }
 }
 
-// cambio de doctor desde el select ⇒ recargamos la página con Inertia
-function changeDoctor () {
+function isWithinAvailableSlot(date) {
+  return events.value.some(ev =>
+    ev.class === 'available' && // ✅
+    date >= ev.start &&
+    date < ev.end
+  )
+}
+
+function changeDoctor() {
   router.get(
     route('admin.calendar'),
     { doctor: selectedDoctorSlug.value },
@@ -61,16 +89,14 @@ function changeDoctor () {
       preserveState: true,
       replace: true,
       onSuccess: () => {
-        // cuando el servidor devuelva de nuevo la página con otro doctor,
-        // volvemos a cargar eventos
         loadEvents()
       },
     }
   )
 }
 
-// handler de clic en celda para crear cita
-async function selectSlot (payload) {
+
+async function selectSlot(payload) {
   console.log('cell-click payload:', payload)
 
   let jsDate = null
@@ -88,11 +114,15 @@ async function selectSlot (payload) {
     return
   }
 
+  if (!isWithinAvailableSlot(jsDate)) {
+    console.log('Click fuera de un slot disponible (admin)')
+    return
+  }
+
   const start = jsDate.toISOString()
 
   try {
-   const res = await fetch('/admin/appointments', { 
-
+    const res = await fetch('/admin/appointments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -138,9 +168,13 @@ async function selectSlot (payload) {
   }
 }
 
+function getEventClass(event) {
+  return event.class || 'available'
+}
+
+
 onMounted(loadEvents)
 
-// si cambia el doctor desde props (por navegación Inertia), sincronizamos el ref
 watch(
   () => props.doctor,
   (val) => {
@@ -159,40 +193,28 @@ watch(
         <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
           Seleccionar médico
         </label>
-        <select
-          v-model="selectedDoctorSlug"
-          @change="changeDoctor"
-          class="border rounded p-2 min-w-[220px] dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-        >
-          <option
-            v-for="d in doctors"
-            :key="d.slug"
-            :value="d.slug"
-          >
+        <select v-model="selectedDoctorSlug" @change="changeDoctor"
+          class="border rounded p-2 min-w-[220px] dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100">
+          <option v-for="d in doctors" :key="d.slug" :value="d.slug">
             {{ d.name }}
           </option>
         </select>
       </div>
     </template>
 
-    <VueCal
-      :time-from="8 * 60"
-      :time-to="18 * 60"
-      :time-step="duration"
-      default-view="week"
-      :events="events"
-      :hide-view-selector="true"
-      :disable-views="['years', 'year', 'month', 'day']"
-      locale="es"
-      @cell-click="selectSlot"
-    />
+    <VueCal :time-from="7 * 60" :time-to="18 * 60" :time-step="duration" default-view="week" :events="events"
+      :hide-view-selector="true" :disable-views="['years', 'year', 'month', 'day']" locale="es"
+      :event-class="getEventClass" @cell-click="selectSlot" />
   </div>
 </template>
 
 <style scoped>
+/* Citas: pending / confirmed / rejected */
 :deep(.vuecal__event.pending),
 :deep(.vuecal__event.confirmed),
 :deep(.vuecal__event.rejected) {
+  background-color: #fef3c7;
+  color: #92400e;
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
@@ -200,43 +222,60 @@ watch(
   border-radius: 0;
   box-shadow: none;
   padding: 2px 4px;
-  font-size: 0.7rem;
-  line-height: 1.1;
+  z-index: 2;
 }
 
-/* colores por estado */
-:deep(.vuecal__event.pending) {
-  background-color: #fef3c7;
-  color: #92400e;
-}
-
+/* Confirmadas → verde */
 :deep(.vuecal__event.confirmed) {
   background-color: #bbf7d0;
   color: #065f46;
 }
 
+/* Rechazadas → rojo */
 :deep(.vuecal__event.rejected) {
   background-color: #fee2e2;
   color: #991b1b;
 }
 
-/* huecos disponibles sin texto ni color */
-:deep(.vuecal__event.available) {
-  background-color: transparent;
-  color: transparent;
-  border: none;
-  box-shadow: none;
+:deep(.vuecal__cell-events) {
+  padding: 0;
 }
 
-:deep(.vuecal__event.available .vuecal__event-title),
-:deep(.vuecal__event.available .vuecal__event-time) {
+/* Disponibles → naranja (debajo de las citas) */
+:deep(.vuecal__event.available) {
+  background-color: #fed7aa;
+  color: #9a3412;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid #fed7aa;
+  padding: 2px 4px;
+  z-index: 1;
+}
+
+/* Ocultar título y hora en disponibles */
+:deep(.vuecal__event.available .vuecal__event-time),
+:deep(.vuecal__event.available .vuecal__event-title) {
   display: none;
 }
 
-/* opcional: quitar horas dentro de los eventos de citas */
+/* Ocultar hora en citas */
 :deep(.vuecal__event.pending .vuecal__event-time),
 :deep(.vuecal__event.confirmed .vuecal__event-time),
 :deep(.vuecal__event.rejected .vuecal__event-time) {
   display: none;
+}
+
+/* Estilo del título en citas */
+:deep(.vuecal__event.pending .vuecal__event-title),
+:deep(.vuecal__event.confirmed .vuecal__event-title),
+:deep(.vuecal__event.rejected .vuecal__event-title) {
+  font-size: 0.7rem;
+  white-space: normal;
+  line-height: 1.1;
+  overflow: visible;
 }
 </style>

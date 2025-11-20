@@ -24,7 +24,6 @@ const form = reactive({
   end_at: '',
 })
 
-// Carga de disponibilidad + citas del doctor
 async function loadAvailability () {
   if (!doctor.value) {
     events.value = []
@@ -41,40 +40,62 @@ async function loadAvailability () {
     }
 
     const data = await res.json()
-    console.log('EVENTS FROM API:', data)
+    console.log('EVENTS FROM API RAW:', data)
 
-    // Si por alguna razón no es array, lo normalizamos
     const list = Array.isArray(data) ? data : []
 
-    // Convertimos start/end a Date y limpiamos el título de available (por si acaso)
-    events.value = list.map(ev => ({
+    const parsed = list.map(ev => ({
       ...ev,
       start: new Date(ev.start),
       end: new Date(ev.end),
-      title: ev.class === 'available' ? '' : ev.title,
     }))
+
+    const appointmentEvents = parsed.filter(e =>
+      e.class === 'pending' || e.class === 'confirmed'
+    )
+
+    const availableEvents = parsed.filter(e => e.class === 'available')
+
+    const overlaps = (a, b) => a.start < b.end && b.start < a.end
+
+    const filteredAvailable = availableEvents.filter(av =>
+      !appointmentEvents.some(ap => overlaps(av, ap))
+    )
+
+    events.value = [
+      ...appointmentEvents.map(e => ({
+        ...e,
+        title: e.title,
+      })),
+      ...filteredAvailable.map(e => ({
+        ...e,
+        title: 'Disponible',
+      })),
+    ]
+
+    console.table(
+      events.value.map(e => ({
+        start: e.start,
+        end: e.end,
+        class: e.class,
+        title: e.title,
+      }))
+    )
   } catch (e) {
     console.error('Error cargando disponibilidad', e)
     events.value = []
   }
 }
-// helper: Date JS -> string "YYYY-MM-DDTHH:mm" para <input type="datetime-local">
+
 function toInputDateTime (date) {
   const offset = date.getTimezoneOffset()
   const local = new Date(date.getTime() - offset * 60000)
   return local.toISOString().slice(0, 16)
 }
 
-// Click en un evento (no en celda vacía)
-function handleEventClick (event) {
-  console.log('event-click:', event)
-
-  // Solo permitir reservar sobre eventos "Disponible"
-  if (event.class !== 'available') return
-
-  const jsDate = new Date(event.start)
+function openReservationModal (jsDate) {
   if (isNaN(jsDate.getTime())) {
-    console.error('Fecha inválida en event.start:', event.start)
+    console.error('Fecha inválida al abrir modal:', jsDate)
     return
   }
 
@@ -86,6 +107,42 @@ function handleEventClick (event) {
 
   form.doctor_id = doctor.value?.id ?? null
   showModal.value = true
+}
+
+function isWithinAvailableSlot (date) {
+  return events.value.some(ev =>
+    ev.class === 'available' &&
+    date >= ev.start &&
+    date < ev.end
+  )
+}
+
+function normalizeEventPayload (payload) {
+  return payload && payload.event ? payload.event : payload
+}
+
+function handleEventClick (payload) {
+  const ev = normalizeEventPayload(payload)
+  console.log('event-click:', ev, 'raw:', payload)
+
+  if (!ev || ev.class !== 'available') {
+    return
+  }
+
+  const jsDate = new Date(ev.start)
+  openReservationModal(jsDate)
+}
+
+function handleTimeClick ({ start }) {
+  const jsDate = new Date(start)
+  console.log('time-click:', jsDate)
+
+  if (!isWithinAvailableSlot(jsDate)) {
+    console.log('Click fuera de un slot disponible')
+    return
+  }
+
+  openReservationModal(jsDate)
 }
 
 function closeModal () {
@@ -108,19 +165,14 @@ function submitReservation () {
         backgroundColor: "#16a34a",
       }).showToast();
 
-      showModal.value = false
-      form.patient_name = ''
-      form.patient_email = ''
-      form.patient_phone = ''
-      form.start_at = ''
-      form.end_at = ''
+      closeModal()
       loadAvailability()
     },
     onError: (errors) => {
       console.error(errors)
 
       Toastify({
-        text: "Revisa los campos del formulario",
+        text: "Ya hay una cita a la misma hora por favor cambie la hora",
         duration: 3000,
         gravity: "top",
         position: "right",
@@ -152,17 +204,18 @@ onMounted(loadAvailability)
 
     <VueCal
       :key="doctor?.slug"
-      :time-from="8 * 60"
+      :time-from="7 * 60"
       :time-to="18 * 60"
+      :time-step="duration"
       default-view="week"
       :events="events"
       :hide-view-selector="true"
       :disable-views="['years', 'year', 'month', 'day']"
       locale="es"
       @event-click="handleEventClick"
+      @time-click="handleTimeClick"
     />
 
-    <!-- Modal de reserva -->
     <transition name="fade">
       <div
         v-if="showModal"
@@ -250,40 +303,41 @@ onMounted(loadAvailability)
 </template>
 
 <style scoped>
-/* ===== EVENTOS PENDIENTES (amarillo) Y CONFIRMADOS (verde) ===== */
-
 :deep(.vuecal__event.pending),
 :deep(.vuecal__event.confirmed) {
-  /* colores */
-  background-color: #fef3c7; /* se sobrescribe abajo para confirmed */
+  background-color: #fef3c7;
   color: #92400e;
-  /* ocupar todo el ancho del slot */
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
   margin: 0 !important;
   border-radius: 0;
   box-shadow: none;
-  padding: 2px 4px; /* un poco de aire dentro */
+  padding: 2px 4px;
+  z-index: 2;
 }
 
-/* color específico para confirmadas */
 :deep(.vuecal__event.confirmed) {
   background-color: #bbf7d0;
   color: #065f46;
 }
 
-/* Opcional: quitar padding del contenedor de eventos para que no encoja nada */
 :deep(.vuecal__cell-events) {
   padding: 0;
 }
 
-/* Disponible: seguimos sin mostrar color ni texto */
 :deep(.vuecal__event.available) {
-  background-color: transparent;
-  color: transparent;
+  background-color: #fed7aa;
+  color: #9a3412;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0;
   box-shadow: none;
-  border: none;
+  border: 1px solid #fed7aa;
+  padding: 2px 4px;
+  z-index: 1;
 }
 
 :deep(.vuecal__event.available .vuecal__event-time),
@@ -291,13 +345,11 @@ onMounted(loadAvailability)
   display: none;
 }
 
-/* Quitar hora para pendientes/confirmadas dentro del recuadro */
 :deep(.vuecal__event.pending .vuecal__event-time),
 :deep(.vuecal__event.confirmed .vuecal__event-time) {
   display: none;
 }
 
-/* Dejar solo el título y que pueda ocupar varias líneas */
 :deep(.vuecal__event.pending .vuecal__event-title),
 :deep(.vuecal__event.confirmed .vuecal__event-title) {
   font-size: 0.7rem;
@@ -306,4 +358,3 @@ onMounted(loadAvailability)
   overflow: visible;
 }
 </style>
-

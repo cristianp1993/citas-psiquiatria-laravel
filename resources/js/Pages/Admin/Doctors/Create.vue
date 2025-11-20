@@ -18,7 +18,7 @@ const form = useForm({
   name: '',
   email: '',
   specialty_id: '',
-  is_active: true,  
+  is_active: true,
   schedules: [
     {
       weekday: 1,
@@ -41,6 +41,17 @@ function removeScheduleRow(index) {
 }
 
 function submit() {
+  const validSchedules = form.schedules.filter(
+    s => s.weekday && s.start_time && s.end_time
+  )
+
+  if (validSchedules.length === 0) {
+    form.setError('schedules', 'Debes agregar al menos un horario válido (día y horas completas).')
+    return
+  }
+
+  form.clearErrors('schedules')
+  form.schedules = validSchedules
   form.post(route('doctors.store'))
 }
 </script>
@@ -58,7 +69,6 @@ function submit() {
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
           <div class="p-6 text-gray-900 dark:text-gray-100">
             <form @submit.prevent="submit">
-              <!-- Nombre -->
               <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label>
                 <input
@@ -72,7 +82,6 @@ function submit() {
                 </div>
               </div>
 
-              <!-- Email -->
               <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                 <input
@@ -86,7 +95,6 @@ function submit() {
                 </div>
               </div>
 
-              <!-- Especialidad -->
               <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Especialidad</label>
                 <select
@@ -104,7 +112,6 @@ function submit() {
                 </div>
               </div>
 
-              <!-- Activo -->
               <div class="mb-4">
                 <label class="flex items-center">
                   <input
@@ -116,7 +123,6 @@ function submit() {
                 </label>
               </div>
 
-              <!-- Horarios -->
               <div class="mb-6">
                 <h3 class="text-lg font-semibold mb-2">Horarios de atención</h3>
 
@@ -124,6 +130,10 @@ function submit() {
                   Define los días y horas en que este doctor atiende. Estos horarios se usarán para
                   calcular la disponibilidad en el calendario público.
                 </p>
+
+                <div v-if="form.errors.schedules" class="text-red-600 text-sm mb-2">
+                  {{ form.errors.schedules }}
+                </div>
 
                 <div class="space-y-2">
                   <div
@@ -177,7 +187,6 @@ function submit() {
                 </button>
               </div>
 
-              <!-- Botón submit -->
               <div class="flex items-center justify-end">
                 <button
                   type="submit"

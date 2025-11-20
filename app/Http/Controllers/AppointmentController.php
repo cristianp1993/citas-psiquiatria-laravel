@@ -6,13 +6,18 @@ use App\Models\Appointment;
 use Illuminate\Http\Request;
 
 class AppointmentController extends Controller {
-    public function index(Request $request){
-        $q = Appointment::with('doctor')
-            ->when($request->doctor, fn($qq)=>$qq->whereHas('doctor',fn($d)=>$d->where('slug',$request->doctor)))
-            ->when($request->status, fn($qq)=>$qq->where('status',$request->status))
-            ->orderBy('start_at','asc');
-        return inertia('Admin/Appointments/Index', ['appointments'=>$q->paginate(20), 'filters' => $request->only(['doctor', 'status'])]);
-    }
+    public function index(Request $request)
+{
+    $q = Appointment::with('doctor')
+        ->when($request->doctor, fn($qq) => $qq->whereHas('doctor', fn($d) => $d->where('slug', 'like', '%' . $request->doctor . '%')))
+        ->when($request->status, fn($qq) => $qq->where('status', $request->status))
+        ->orderBy('start_at', 'asc');
+
+    return inertia('Admin/Appointments/Index', [
+        'appointments' => $q->paginate(20),
+        'filters' => $request->only(['doctor', 'status'])
+    ]);
+}
 
     public function show(Appointment $appointment){
         $appointment->load('doctor');
