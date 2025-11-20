@@ -24,8 +24,8 @@ const form = useForm({
     is_active: Boolean(props.doctor.is_active),
     schedules: (props.doctor.schedules || []).map(s => ({
         weekday: s.weekday,
-        start_time: s.start_time,
-        end_time: s.end_time,
+        start_time: s.start_time ? s.start_time.substring(0, 5) : '',
+        end_time: s.end_time ? s.end_time.substring(0, 5) : '',
     })),
 })
 
@@ -42,15 +42,17 @@ function removeScheduleRow(index) {
 }
 
 function submit() {
-    form.transform((data) => ({
-        ...data,
-        schedules: data.schedules.filter(s =>
-            s.weekday != null &&
-            s.start_time?.trim() &&
-            s.end_time?.trim()
-        ),
-    })).put(route('doctors.update', props.doctor.slug), {
+    // Opción 1: Sin transform (MÁS SIMPLE Y CONFIABLE)
+    form.put(route('doctors.update', props.doctor.slug), {
         preserveScroll: true,
+        onBefore: () => {
+            // Filtrar schedules vacíos antes de enviar
+            form.schedules = form.schedules.filter(s =>
+                s.weekday != null &&
+                s.start_time?.trim() &&
+                s.end_time?.trim()
+            )
+        },
     })
 }
 </script>
